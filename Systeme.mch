@@ -59,7 +59,27 @@ OPERATIONS
         THEN
             services := services \/ {ss}
         END
+    END;
+    
+    souscrire(pp, ss) =
+    PRE
+        pp : PROCESSUS &
+        ss : services &
+        (pp |-> ss) /: souscrit & // le processus ne doit pas être déjà souscrit au service
+        actif(ss) = TRUE & // on ne peut pas souscrire à un service inactif
+        ss /: (exclusif~[{TRUE}] /\ ran(souscrit))// on peut pas pas souscrire un service exclusif qui a déjà un processus souscrit
+    THEN
+        souscrit := souscrit \/ {(pp |-> ss)} 
+    END;
+
+//suspendre une souscription de service,
+    suspendre(pp, ss) =
+    PRE
+        pp : PROCESSUS &
+        ss : services &
+        (pp |-> ss) : souscrit
+    THEN
+        souscrit := souscrit - {(pp |-> ss)}
     END
     
-          
 END
