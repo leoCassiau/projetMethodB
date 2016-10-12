@@ -94,57 +94,38 @@ OPERATIONS
         (pp |-> ss) : souscrit
     THEN
         souscrit := souscrit - {(pp |-> ss)}
+
     END;
 
-/**
+
     activerService(ns) = // permet d'activer un service dont le nom est donné en parametre, ns: nom du service
     PRE
         ns : noms 
-        & card(nomDe~(ns)) = 1 // le nom doit correspondre à un service
-        & actif[nomDe~(ns)] = {FALSE}  // le service qui correspond au nom est non actif       
+        & ns : ran(nomDe) // le nom doit correspondre à un service
+        & actif[nomDe~[{ns}]] = {FALSE}  // le service qui correspond au nom est non actif       
     THEN
-        ss = nomDe~(ns)
-        || actif (ss) = TRUE        
-    END
+        ANY ss WHERE                        
+			ss : services
+            & ss = nomDe~(ns)            
+        THEN
+            actif(ss) := TRUE        
+        END
+    END;
     
     interrompreService(ns) = // permet d'interrompre un service dont le nom est donné en parametre, ns: nom du service
     PRE
         ns : noms 
-        & card(nomDe~(ns)) = 1 // le nom doit correspondre à un service
-        & actif[nomDe~(ns)] = {FALSE}  // le service qui correspond au nom est non actif       
+        & ns : ran(nomDe) // le nom doit correspondre à un service
+        & actif[nomDe~[{ns}]] = {TRUE}  // le service qui correspond au nom est actif
     THEN
-        ss = nomDe~(ns)
-        ANY pp WHERE
-            pp : processus 
-            & pp |-> ss : souscrit
+        ANY ss WHERE                        
+			ss : services
+            & ss = nomDe~(ns)            
         THEN
-            souscrit = souscrit - {pp |-> ss}
+            souscrit := souscrit |>> {ss}
+            || actif(ss) := FALSE
         END
-        actif(ss) = FALSE
-    END;        
-**/
 
-    res <-- ajouterProcessus(profil) = // ajout du processus res avec le profil indiqué aux processus du système
-    PRE
-        profil : PROFILS
-        & res : processus
-    THEN
-        ANY pp WHERE
-            pp : PROCESSUS &
-            pp /: processus
-        THEN
-            profilDe(pp) := profil
-            || processus := processus \/ {pp}
-            || res := pp
-        END
-    END;
-    
-    supprimerProcessus(pp) = // Suppression du processus pp des processus du système
-    PRE
-        pp : processus
-    THEN
-        // TODO supprimer toutes les inscriptions
-        processus := processus - {pp}
-    END
+    END           
     
 END
