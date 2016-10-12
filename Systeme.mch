@@ -22,7 +22,8 @@ VARIABLES
     actif,       // Service actif ou non ?
     souscrit,    // Processus inscrits au services
     profilDe,    // Profil des processus
-    profilsAutorises // Profils autorises des services
+    profilsAutorises, // Profils autorises des services
+    occupe
 
 INVARIANT
     services <: SERVICES
@@ -35,6 +36,7 @@ INVARIANT
     & profilDe: processus --> PROFILS
     & profilsAutorises : services <-> PROFILS
     & nomDe : services >->> noms
+    & occupe : services --> BOOL
     & profilsAutorises[dom(profilsAutorises) /\ contraint~[{FALSE}]] = PROFILS // les services non contraints autorisent tous les profils de processus
     & card(profilsAutorises[dom(profilsAutorises) /\ contraint~[{TRUE}]]) >= 1 // les services contraints autorisent au moins un profil de processus
     & actif[ran(souscrit)] = {TRUE} // un processus ne peut pas être souscrit à un service désactivé
@@ -50,6 +52,7 @@ INITIALISATION
    || profilsAutorises := {}
    || noms := {}
    || processus := {}
+   || occupe := {}
     
 OPERATIONS
     
@@ -71,6 +74,7 @@ OPERATIONS
             || contraint(ss) := cc 
             || exclusif(ss) := ee
             || actif(ss) := FALSE
+            || occupe(ss) := FALSE
             || services := services \/ {ss}
             || res := ss
         END
