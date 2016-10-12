@@ -82,30 +82,28 @@ OPERATIONS
         souscrit := souscrit - {(pp |-> ss)}
     END
     
-     activerService(ns) = // permet d'activer un service dont le nom est donné en parametre, ns: nom du service
+    activerService(ns) = // permet d'activer un service dont le nom est donné en parametre, ns: nom du service
     PRE
         ns : noms 
-        & card(nomDe~(ns)) = 1 // le nom doit correspondre à un service
+        & ns : ran(nomDe) // le nom doit correspondre à un service
         & actif[nomDe~(ns)] = {FALSE}  // le service qui correspond au nom est non actif       
     THEN
-        ss = nomDe~(ns)
-        || actif (ss) = TRUE        
+        actif [nomDe~(ns)] := {TRUE}        
     END
     
     interrompreService(ns) = // permet d'interrompre un service dont le nom est donné en parametre, ns: nom du service
     PRE
         ns : noms 
-        & card(nomDe~(ns)) = 1 // le nom doit correspondre à un service
-        & actif[nomDe~(ns)] = {FALSE}  // le service qui correspond au nom est non actif       
+        & ns : ran(nomDe) // le nom doit correspondre à un service
+        & actif[nomDe~(ns)] = {TRUE}  // le service qui correspond au nom est actif
     THEN
-        ss = nomDe~(ns)
-        ANY pp WHERE
-            pp : processus 
-            & pp |-> ss : souscrit
+        ANY ss WHERE                        
+			ss : services
+            & ss = nomDe~(ns)            
         THEN
-            souscrit = souscrit - {pp |-> ss}
+            souscrit := souscrit |>> {ss}
+            || actif(ss) := FALSE
         END
-        actif(ss) = FALSE
     END           
     
 END
