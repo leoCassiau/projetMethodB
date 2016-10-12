@@ -170,4 +170,52 @@ OPERATIONS
         res := actif(ss)
     END
     
+    mettreExclusifService(ns) = // permet de mettre en exclusif un service dont le nom est donné en parametre, ns: nom du service
+    PRE
+        ns : noms 
+        & ns : ran(nomDe) // le nom doit correspondre à un service
+    THEN
+        exclusif(nomDe~(ns)) := TRUE 
+    END;
+    
+     mettreNonExclusifService(ns) = 
+ // permet de mettre en non exclusif un service dont le nom est donné en parametre, ns: nom du service
+    PRE
+        ns : noms 
+        & ns : ran(nomDe) // le nom doit correspondre à un service
+    THEN
+        exclusif(nomDe~(ns)) := FALSE
+    END;
+    
+    
+    
+    mettreContraint(ns, profil) = // permet de mettre contraint un service dont le nom est en                                       
+                                  //  parametre pour un profil donné, ns: nom du service, profil:     
+                                  //profil usager
+    PRE
+        profil :  PROFILS
+        & ns : noms 
+        & ns : ran(nomDe) // le nom doit correspondre à un service
+    THEN
+         ANY ss WHERE                        
+			    ss : services
+            & ss = nomDe~(ns)            
+        THEN
+           profilsAutorises(ss) := profil
+        || contraint(ss) := TRUE        
+        END
+    END;
+    
+    mettreNonContraint(ns) =      // permet de mettre contraint un service dont le nom est en                                       
+                                  //  parametre pour un profil donné, ns: nom du service, profil:     
+                                  //profil usager
+    PRE
+        ns : noms 
+        & ns : ran(nomDe) // le nom doit correspondre à un service
+    THEN
+        //profilsAutorises(nomDe~(ns)):= PROFILS
+        contraint(nomDe~(ns)) := FALSE
+    END
+
+    
 END
