@@ -40,31 +40,31 @@ INVARIANT
     & actif[ran(souscrit)] = {TRUE} // un processus ne peut pas être souscrit à un service désactivé
     
 INITIALISATION
-   actif := {} ||
-   nomDe := {} ||
-   contraint:= {} ||  
-   exclusif := {} ||
-   souscrit := {} ||
-   services := {} ||
-   profilDe := {} ||
-   profilsAutorises := {} ||
-   noms := {} ||
-   processus := {}
+   actif := {}
+   || nomDe := {}
+   || contraint:= {}
+   || exclusif := {}
+   || souscrit := {}
+   || services := {}
+   || profilDe := {}
+   || profilsAutorises := {}
+   || noms := {}
+   || processus := {}
     
 OPERATIONS
     
     res <-- ajouterService(nom, cc, ee) = // Ajout du service res aux services du système. nom : nom du service, cc : service contraint ou non ?, ee : service exclusif ou non ?
     PRE
-        nom : NOMS &
-        cc : BOOL &
-        ee : BOOL &
-        nom /: nomDe[services] &
-        nom /: noms
+        nom : NOMS
+        & cc : BOOL
+        & ee : BOOL
+        & nom /: nomDe[services]
+        & nom /: noms
         
     THEN
         ANY ss WHERE
-            ss : SERVICES &
-            ss /: services
+            ss : SERVICES
+            & ss /: services
         THEN
             noms := noms \/ {nom}
             || nomDe(ss) := nom 
@@ -77,11 +77,11 @@ OPERATIONS
     
     souscrire(pp, ss) = // pp processus qui souscrit au service ss
     PRE
-        pp : processus &
-        ss : services &
-        (pp |-> ss) /: souscrit & // le processus ne doit pas être déjà souscrit au service
-        actif(ss) = TRUE & // on ne peut pas souscrire à un service inactif
-        ss /: (exclusif~[{TRUE}] /\ ran(souscrit))// on peut pas pas souscrire un service exclusif qui a déjà un processus souscrit
+        pp : processus
+        & ss : services
+        & (pp |-> ss) /: souscrit // le processus ne doit pas être déjà souscrit au service
+        & actif(ss) = TRUE // on ne peut pas souscrire à un service inactif
+        & ss /: (exclusif~[{TRUE}] /\ ran(souscrit))// on peut pas pas souscrire un service exclusif qui a déjà un processus souscrit
     THEN
         souscrit := souscrit \/ {(pp |-> ss)} 
     END;
@@ -89,9 +89,9 @@ OPERATIONS
 
     suspendre(pp, ss) = // pp processus qui suspend une souscription au service ss
     PRE
-        pp : processus &
-        ss : services &
-        (pp |-> ss) : souscrit
+        pp : processus
+        & ss : services 
+        & (pp |-> ss) : souscrit
     THEN
         souscrit := souscrit - {(pp |-> ss)}
 
@@ -126,6 +126,31 @@ OPERATIONS
             || actif(ss) := FALSE
         END
 
-    END           
+    END;
+    
+    res <-- ajouterProcessus(profil) = // ajout du processus res avec le profil indiqué aux processus du système
+    PRE
+        profil : PROFILS
+    THEN
+        ANY pp WHERE
+            pp : PROCESSUS &
+            pp /: processus
+        THEN
+            profilDe(pp) := profil
+            || processus := processus \/ {pp}
+            || res := pp
+        END
+    END;
+    
+    supprimerProcessus(pp) = // suppression du processus pp du système
+    PRE
+        pp : processus
+    THEN
+        processus := processus - {pp}
+        || profilDe := {pp} <<| profilDe
+        || souscrit := {pp} <<| souscrit
+    END
+    
+    
     
 END
