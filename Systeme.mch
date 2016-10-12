@@ -82,7 +82,7 @@ OPERATIONS
         & ss : services
         & (pp |-> ss) /: souscrit // le processus ne doit pas être déjà souscrit au service
         & actif(ss) = TRUE // on ne peut pas souscrire à un service inactif
-        & ss /: (exclusif~[{TRUE}] /\ ran(souscrit))// on peut pas pas souscrire un service exclusif qui a déjà un processus souscrit
+        //& ss /: (exclusif~[{TRUE}] /\ ran(souscrit))// on peut pas pas souscrire un service exclusif qui a déjà un processus souscrit
     THEN
         souscrit := souscrit \/ {(pp |-> ss)} 
     END;
@@ -156,6 +156,14 @@ OPERATIONS
         & np : PROFILS
     THEN
         profilDe(pp) := np
+    END;
+    
+    res <-- estActif(ss) = // retourne vrai si le service ss est actif, faux sinon
+    PRE
+        ss : services &
+        actif(ss) = TRUE
+    THEN
+        res := actif(ss)
     END
     
 END
