@@ -70,6 +70,7 @@ OPERATIONS
             || nomDe(ss) := nom 
             || contraint(ss) := cc 
             || exclusif(ss) := ee
+            || actif(ss) := FALSE
             || services := services \/ {ss}
             || res := ss
         END
@@ -86,7 +87,6 @@ OPERATIONS
         souscrit := souscrit \/ {(pp |-> ss)} 
     END;
 
-
     suspendre(pp, ss) = // pp processus qui suspend une souscription au service ss
     PRE
         pp : processus
@@ -96,7 +96,6 @@ OPERATIONS
         souscrit := souscrit - {(pp |-> ss)}
 
     END;
-
 
     activerService(ns) = // permet d'activer un service dont le nom est donné en parametre, ns: nom du service
     PRE
@@ -122,8 +121,8 @@ OPERATIONS
 			ss : services
             & ss = nomDe~(ns)            
         THEN
-            souscrit := souscrit |>> {ss}
-            || actif(ss) := FALSE
+            actif(ss) := FALSE
+            // TODO dans le raffinement : informer les processus que ce service est désactivé
         END
 
     END;
@@ -149,8 +148,14 @@ OPERATIONS
         processus := processus - {pp}
         || profilDe := {pp} <<| profilDe
         || souscrit := {pp} <<| souscrit
+    END;
+    
+    modifierProfil(pp, np) = // modifie le profil du processus pp en profil np
+    PRE
+        pp : processus
+        & np : PROFILS
+    THEN
+        profilDe(pp) := np
     END
-    
-    
     
 END
