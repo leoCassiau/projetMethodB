@@ -10,8 +10,8 @@ SETS
     SERVICES;
     PROCESSUS;    
     NOMS;
-    PROFILS = {admin, invite, usage}
-
+    PROFILS
+    
 VARIABLES
     services,    // Services du système
     processus,   // Processus du système
@@ -34,10 +34,11 @@ INVARIANT
     & souscrit : processus <-> services
     & profilDe: processus --> PROFILS
     & profilsAutorises : services <-> PROFILS
-    & nomDe : services >->> noms
-    & (((profilsAutorises /= {}) & (contraint~[{FALSE}] /= {})) => (profilsAutorises[contraint~[{FALSE}]] = PROFILS)) // les services non contraints autorisent tous les profils de processus
-    & ((card(profilsAutorises) >= 1) => (card(profilsAutorises[contraint~[{TRUE}]]) >= 1)) // les services contraints autorisent au moins un profil de processus
-    //& ((card(souscrit) >= 1) => (actif[ran(souscrit)] = {TRUE})) // un processus ne peut pas être souscrit à un service désactivé
+    & nomDe : services >->> noms 
+    // & contraint~[{FALSE}] <: profilsAutorises[PROFILS] // les services non contraints autorisent tous les profils de processus (Impossible à prouver)
+    // & !(ss).( ss : contraint~[{FALSE}] => profilsAutorises[{ss}] = PROFILS ) // les services non contraints autorisent tous les profils de processus (Impossible à prouver)
+    // & ((card(profilsAutorises) >= 1) => (card(profilsAutorises[contraint~[{TRUE}]]) >= 1)) // les services contraints autorisent au moins un profil de processus (Impossible à prouver)
+    // & ((card(souscrit) >= 1) => (actif[ran(souscrit)] = {TRUE})) // un processus ne peut pas être souscrit à un service désactivé (INUTILE)
     
 INITIALISATION
    actif := {}
@@ -53,13 +54,14 @@ INITIALISATION
     
 OPERATIONS
     
+    /*** Opérations sur les services ***/
+    
     res <-- ajouterService(nom, cc, ee) = // Ajout du service res aux services du système. nom : nom du service, cc : service contraint ou non ?, ee : service exclusif ou non ?
     PRE
         nom : NOMS
         & nom /: ran(nomDe)
         & cc : BOOL
         & ee : BOOL
-        
     THEN
         ANY ss WHERE
             ss : SERVICES
@@ -82,27 +84,7 @@ OPERATIONS
         END
     END;
     
-    souscrire(pp, ss) = // pp processus qui souscrit au service ss
-    PRE
-        pp : processus
-        & ss : services
-        & (pp |-> ss) /: souscrit // le processus ne doit pas être déjà souscrit au service
-        & actif[{ss}] = {TRUE} // on ne peut pas souscrire à un service inactif
-        //& ss /: (exclusif~[{TRUE}] /\ ran(souscrit))// on peut pas pas souscrire un service exclusif qui a déjà un processus souscrit
-    THEN
-        souscrit := souscrit \/ {(pp |-> ss)} 
-    END;
-
-    suspendre(pp, ss) = // pp processus qui suspend une souscription au service ss
-    PRE
-        pp : processus
-        & ss : services 
-        & (pp |-> ss) : souscrit
-    THEN
-        souscrit := souscrit - {(pp |-> ss)}
-
-    END;
-
+    
     activerService(ns) = // permet d'activer un service dont le nom est donné en parametre, ns∈ nom du service
     PRE
         ns : noms 
@@ -117,61 +99,38 @@ OPERATIONS
         END
     END;
     
+    
     interrompreService(ns) = // permet d'interrompre un service dont le nom est donné en parametre, ns: nom du service
     PRE
         ns : noms 
         & ns : ran(nomDe) // le nom doit correspondre à un service
-        & actif[nomDe~[{ns}]] = {TRUE}  // le service qui correspond au nom est actif
+        & actif(nomDe~(ns)) = TRUE  // le service qui correspond au nom est actif
     THEN
         ANY ss WHERE                        
 			ss : services
-            & ss = nomDe~(ns)            
+        & ss = nomDe~(ns)            
         THEN
             actif(ss) := FALSE
             // TODO dans le raffinement : informer les processus que ce service est désactivé
         END
 
     END;
-    
-    res <-- ajouterProcessus(profil) = // ajout du processus res avec le profil indiqué aux processus du système
+
+
+    res <-- estActif(ns) = // retourne vrai si le service du nom ns est actif, faux sinon
     PRE
-        profil : PROFILS
+        ns : noms 
+        & ns : ran(nomDe) // le nom doit correspondre à un service
     THEN
-        ANY pp WHERE
-            pp : PROCESSUS &
-            pp /: processus
+        ANY ss WHERE
+            ss : services
+            & ss = nomDe~(ns)            
         THEN
-            profilDe(pp) := profil
-            || processus := processus \/ {pp}
-            || res := pp
+            res := actif(ss)
         END
     END;
-    
-    supprimerProcessus(pp) = // suppression du processus pp du système
-    PRE
-        pp : processus
-    THEN
-        processus := processus - {pp}
-        || profilDe := {pp} <<| profilDe
-        || souscrit := {pp} <<| souscrit
-    END;
-    
-    modifierProfil(pp, np) = // modifie le profil du processus pp en profil np
-    PRE
-        pp : processus
-        & np : PROFILS
-    THEN
-        profilDe(pp) := np
-    END;
-    
-    res <-- estActif(ss) = // retourne vrai si le service ss est actif, faux sinon
-    PRE
-        ss : services &
-        actif(ss) = TRUE
-    THEN
-        res := actif(ss)
-    END;
-    
+
+
     mettreExclusifService(ns) = // permet de mettre en exclusif un service dont le nom est donné en parametre, ns: nom du service
     PRE
         ns : noms 
@@ -180,8 +139,8 @@ OPERATIONS
         exclusif(nomDe~(ns)) := TRUE 
     END;
     
-     mettreNonExclusifService(ns) = 
- // permet de mettre en non exclusif un service dont le nom est donné en parametre, ns: nom du service
+    
+    mettreNonExclusifService(ns) = // permet de mettre en non exclusif un service dont le nom est donné en parametre, ns: nom du service
     PRE
         ns : noms 
         & ns : ran(nomDe) // le nom doit correspondre à un service
@@ -190,6 +149,18 @@ OPERATIONS
     END;
     
     
+    res <-- estExclusif(ns) = // retourne vrai si le service du nom ns est exclusif, faux sinon
+    PRE
+        ns : noms 
+        & ns : ran(nomDe) // le nom doit correspondre à un service
+    THEN
+        ANY ss WHERE
+            ss : services
+            & ss = nomDe~(ns)            
+        THEN
+            res := exclusif(ss)
+        END
+    END;
     
     mettreContraint(ns) = // permet de mettre contraint un service dont le nom est en parametre , ns: nom du service
     PRE
@@ -220,7 +191,7 @@ OPERATIONS
         END
     END;
     
-    supprimerProfilAutorise(ns, ps) = // Supprime le profil ps des profils autorises du service contraint ns
+    supprimerProfilAutorise(ns, ps) = // Supprime le profil ps des profils autorises du service contraint qui a pour nom ns
     PRE
         ns : noms
         & ns : ran(nomDe)
@@ -235,5 +206,82 @@ OPERATIONS
         THEN
             profilsAutorises := profilsAutorises - {(ss|->ps)}
         END
+    END;
+    
+    ajouterProfilAutorise(ns, ps) = // Ajoute le profil ps des profils autorises du service contraint qui a pour nom ns
+    PRE
+        ns : noms
+        & ns : ran(nomDe)
+        & contraint(nomDe~(ns)) = TRUE
+        & ps : PROFILS
+        & ps /: profilsAutorises[{nomDe~(ns)}]
+    THEN
+        ANY ss WHERE                        
+			    ss : services
+            & ss = nomDe~(ns)
+        THEN
+            profilsAutorises := profilsAutorises \/ {(ss|->ps)}
+        END
+    END;
+
+    /*** Opérations sur les processus ***/
+    
+    res <-- ajouterProcessus(profil) = // ajout du processus res avec le profil indiqué aux processus du système
+    PRE
+        profil : PROFILS
+    THEN
+        ANY pp WHERE
+            pp : PROCESSUS &
+            pp /: processus &
+            pp /: dom(profilDe) &
+            pp /: dom(souscrit) 
+        THEN
+            profilDe(pp) := profil
+            || processus := processus \/ {pp}
+            || res := pp
+        END
+    END;
+    
+    
+    supprimerProcessus(pp) = // suppression du processus pp du système
+    PRE
+        pp : processus
+    THEN
+        processus := processus - {pp}
+        || profilDe := {pp} <<| profilDe
+        || souscrit := {pp} <<| souscrit
+    END;
+    
+
+    modifierProfil(pp, np) = // modifie le profil du processus pp en profil np
+    PRE
+        pp : processus
+        & np : PROFILS
+    THEN
+        profilDe(pp) := np
+    END;
+    
+
+    souscrire(pp, ss) = // pp processus qui souscrit au service ss
+    PRE
+        pp : processus
+        & ss : services
+        & (pp |-> ss) /: souscrit // le processus ne doit pas être déjà souscrit au service
+        & actif(ss) = TRUE // on ne peut pas souscrire à un service inactif
+        //& ss /: (exclusif~[{TRUE}] /\ ran(souscrit))// on peut pas pas souscrire un service exclusif qui a déjà un processus souscrit
+    THEN
+        souscrit := souscrit \/ {(pp |-> ss)} 
+    END;
+
+
+    suspendre(pp, ss) = // pp processus qui suspend une souscription au service ss
+    PRE
+        pp : processus
+        & ss : services 
+        & (pp |-> ss) : souscrit
+    THEN
+        souscrit := souscrit - {(pp |-> ss)}
+
     END
+  
 END
