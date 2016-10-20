@@ -35,10 +35,9 @@ INVARIANT
     & profilDe: processus --> PROFILS
     & profilsAutorises : services <-> PROFILS
     & nomDe : services >->> noms
-    &((card(profilsAutorises) >= 1) => profilsAutorises[dom(profilsAutorises) /\ contraint~[{FALSE}]] = PROFILS)
-  // les services non contraints autorisent tous les profils de processus
+    & (((profilsAutorises /= {}) & (contraint~[{FALSE}] /= {})) => (profilsAutorises[contraint~[{FALSE}]] = PROFILS)) // les services non contraints autorisent tous les profils de processus
     & ((card(profilsAutorises) >= 1) => (card(profilsAutorises[contraint~[{TRUE}]]) >= 1)) // les services contraints autorisent au moins un profil de processus
-    & ((card(souscrit) >= 1) => (actif[ran(souscrit)] = {TRUE})) // un processus ne peut pas être souscrit à un service désactivé
+    //& ((card(souscrit) >= 1) => (actif[ran(souscrit)] = {TRUE})) // un processus ne peut pas être souscrit à un service désactivé
     
 INITIALISATION
    actif := {}
@@ -57,10 +56,9 @@ OPERATIONS
     res <-- ajouterService(nom, cc, ee) = // Ajout du service res aux services du système. nom : nom du service, cc : service contraint ou non ?, ee : service exclusif ou non ?
     PRE
         nom : NOMS
+        & nom /: ran(nomDe)
         & cc : BOOL
         & ee : BOOL
-        & nom /: nomDe[services]
-        & nom /: noms
         
     THEN
         ANY ss WHERE
@@ -68,10 +66,15 @@ OPERATIONS
             & ss /: services
             & ss /: dom(profilsAutorises)
             & ss /: ran(souscrit)
+            & ss /: dom(nomDe)
+            & ss /: dom(contraint)
+            & ss /: dom(exclusif)
+            & ss /: dom(actif)
         THEN
             noms := noms \/ {nom}
             || nomDe(ss) := nom 
-            || contraint(ss) := cc 
+            || contraint(ss) := cc
+            || profilsAutorises := profilsAutorises \/ {ss}*PROFILS
             || exclusif(ss) := ee
             || actif(ss) := FALSE
             || services := services \/ {ss}
@@ -84,7 +87,7 @@ OPERATIONS
         pp : processus
         & ss : services
         & (pp |-> ss) /: souscrit // le processus ne doit pas être déjà souscrit au service
-        & actif(ss) = TRUE // on ne peut pas souscrire à un service inactif
+        & actif[{ss}] = {TRUE} // on ne peut pas souscrire à un service inactif
         //& ss /: (exclusif~[{TRUE}] /\ ran(souscrit))// on peut pas pas souscrire un service exclusif qui a déjà un processus souscrit
     THEN
         souscrit := souscrit \/ {(pp |-> ss)} 
@@ -151,7 +154,6 @@ OPERATIONS
         processus := processus - {pp}
         || profilDe := {pp} <<| profilDe
         || souscrit := {pp} <<| souscrit
-        
     END;
     
     modifierProfil(pp, np) = // modifie le profil du processus pp en profil np
@@ -189,20 +191,16 @@ OPERATIONS
     
     
     
-    mettreContraint(ns, profil) = // permet de mettre contraint un service dont le nom est en                                       
-                                  //  parametre pour un profil donné, ns: nom du service, profil:     
-                                  //profil usager
+    mettreContraint(ns) = // permet de mettre contraint un service dont le nom est en parametre , ns: nom du service
     PRE
-        profil :  PROFILS
-        & ns : noms 
+        ns : noms 
         & ns : ran(nomDe) // le nom doit correspondre à un service
     THEN
-         ANY ss WHERE                        
+        ANY ss WHERE                        
 			    ss : services
-            & ss = nomDe~(ns)            
+            & ss = nomDe~(ns)
         THEN
-           profilsAutorises(ss) := profil
-        || contraint(ss) := TRUE        
+            contraint(ss) := TRUE
         END
     END;
     
@@ -213,8 +211,29 @@ OPERATIONS
         ns : noms 
         & ns : ran(nomDe) // le nom doit correspondre à un service
     THEN
-        profilsAutorises := profilsAutorises \/ ({nomDe~(ns)} * PROFILS)
-        || contraint(nomDe~(ns)) := FALSE
-    END
+        ANY ss WHERE                        
+			    ss : services
+            & ss = nomDe~(ns)
+        THEN
+            profilsAutorises := profilsAutorises \/ ({ss} * PROFILS)
+            || contraint(ss) := FALSE
+        END
+    END;
     
+    supprimerProfilAutorise(ns, ps) = // Supprime le profil ps des profils autorises du service contraint ns
+    PRE
+        ns : noms
+        & ns : ran(nomDe)
+        & contraint(nomDe~(ns)) = TRUE
+        & ps : PROFILS
+        & ps : profilsAutorises[{nomDe~(ns)}]
+        & card(profilsAutorises[{nomDe~(ns)}]) > 1
+    THEN
+        ANY ss WHERE                        
+			    ss : services
+            & ss = nomDe~(ns)
+        THEN
+            profilsAutorises := profilsAutorises - {(ss|->ps)}
+        END
+    END
 END
