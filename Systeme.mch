@@ -1,5 +1,5 @@
 /* Systeme
- * Auteurs : Léo Cassiau, TODO vous rajoutez (désolé je connais pas vos noms)
+ * Auteurs : Léo Cassiau, RANDRIAMAHARAVOMANANA Tantely, TODO vous rajoutez (désolé je connais pas vos noms)
  * Impossible de séparer processus, noms et services car leurs ensembles ont des dépendances
  * Date de création : 05/10/16
  */
