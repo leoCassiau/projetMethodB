@@ -1,0 +1,238 @@
+/* RfnmSysteme_i
+ * Author: Tantely
+ * Creation date: 03/11/2016
+ */
+
+IMPLEMENTATION Systeme_i
+    
+REFINES Systeme
+
+DEFINITIONS 
+    PLAGE_NOMS == 0..100;
+    PLAGE_SERVICES == 0..100;
+    PLAGE_PROCESSUS == 0..200;
+    PLAGE_PROFILS == 0..20;
+    maxPROFILS == 21
+    
+SETS    
+    OKKO = {ok, ko}
+    
+VALUES
+    NOMS = PLAGE_NOMS;
+    PROFILS = PLAGE_PROFILS;
+    SERVICES = PLAGE_SERVICES;
+    PROCESSUS = PLAGE_PROCESSUS
+    
+
+CONCRETE_VARIABLES
+    c_noms,
+    c_services,
+    c_processus,
+    c_profils,
+    
+    services,    // Services du systeme
+    processus,   // Processus du systeme
+    noms,        // Noms du systemes
+    nomDe,       // Noms des services du systemes
+    contraint,   // Service contraint ou non ?
+    exclusif,    // Service exclusif ou non ?
+    actif,       // Service actif ou non ?
+    souscrit,    // Processus inscrits au services
+    profilDe,    // Profil des processus
+    profilsAutorises // Profils autorises des services
+
+INVARIANT
+    
+      c_noms : PLAGE_NOMS --> OKKO
+    & c_services : PLAGE_SERVICES --> OKKO
+    & c_profils : PLAGE_PROFILS --> OKKO
+    & c_processus : PLAGE_PROCESSUS --> OKKO
+    
+    & services = c_services~[{ok}]
+    & processus = c_processus~[{ok}]
+    & noms = c_noms~[{ok}]
+    
+    & contraint : services --> BOOL
+    & exclusif : services --> BOOL
+    & actif : services --> BOOL
+    & souscrit : processus <-> services
+    & profilDe: processus --> PROFILS
+    & profilsAutorises : services <-> PROFILS
+    & nomDe : services >->> noms 
+    
+
+INITIALISATION
+   c_noms := (PLAGE_NOMS)*{ko};
+   c_services := (PLAGE_SERVICES)*{ko};
+   c_processus := (PLAGE_PROCESSUS)*{ko};
+   c_profils := (PLAGE_PROFILS)*{ko}
+    
+
+OPERATIONS
+      /*** Operations sur les services ***/
+      
+             
+       res <-- ajouterService(nom, cc, ee) =
+       BEGIN
+           VAR ss IN    
+               ss:=0;
+               WHILE c_services(ss)=ok
+               DO
+                   ss := ss + 1
+               INVARIANT
+                   ss : PLAGE_SERVICES
+               VARIANT
+                   ss
+               END;
+               c_noms(nom) := ok;           
+               nomDe(ss) := nom ;
+               contraint(ss) := cc;              
+                            
+               VAR prfl IN
+                   prfl:=0;
+                   WHILE prfl<maxPROFILS
+                   DO
+                       profilsAutorises(ss) := prfl;
+                       prfl := prfl + 1
+                   INVARIANT
+                       prfl : PLAGE_PROFILS
+                   VARIANT
+                       prfl
+                   END
+               END;
+               
+               exclusif(ss) := ee;
+               c_services(ss) := ok;
+               res := ss
+           END
+       END
+       ;
+       
+      
+      activerService(ns)= 
+      BEGIN
+           VAR ss IN
+               ss := nomDe~(ns);
+               actif(ss) := TRUE  
+           END
+      END
+      ;
+       
+    
+     interrompreService(ns) =    
+     BEGIN
+        VAR ss IN
+               ss := nomDe~(ns);
+               actif(ss) := FALSE  
+        END
+     END
+     ;
+     
+    res <-- estActif(ns) = // retourne vrai si le service du nom ns est actif, faux sinon
+    BEGIN
+        VAR ss IN
+            ss := nomDe~(ns); 
+            res := actif(ss)        
+        END
+    END;
+    
+    mettreExclusifService(ns) = // permet de mettre en exclusif un service dont le nom est donne en parametre, ns: nom du service
+    BEGIN        
+        exclusif(nomDe~(ns)) := TRUE 
+    END;
+    
+    mettreNonExclusifService(ns) =
+    // permet de mettre en non exclusif un service dont le nom est donne en parametre, ns: nom du service
+    BEGIN       
+        exclusif(nomDe~(ns)) := FALSE
+    END;
+  
+    res <-- estExclusif(ns) = // retourne vrai si le service du nom ns est exclusif, faux sinon
+    BEGIN         
+        res := exclusif(nomDe~(ns))       
+    END;
+    
+    mettreContraint(ns) = // permet de mettre contraint un service dont le nom est en parametre , ns: nom du service
+    BEGIN       
+         contraint(nomDe~(ns)) := TRUE
+    END;
+    
+    mettreNonContraint(ns) =      // permet de mettre non contraint un service dont le nom est en                                       
+                                  //  parametre pour un profil donne, ns: nom du service, profil:     
+                                  //profil usager
+    BEGIN        
+         VAR prfl IN
+                   prfl:=0;
+                   WHILE prfl<maxPROFILS
+                   DO
+                       profilsAutorises(nomDe~(ns)) := prfl;
+                       prfl := prfl + 1
+                   INVARIANT
+                       prfl : PLAGE_PROFILS
+                   VARIANT
+                       prfl
+                   END
+          END;
+        contraint(nomDe~(ns)) := FALSE
+    END;
+    
+    
+    supprimerProfilAutorise(ns, ps) = // Supprime le profil ps des profils autorises du service contraint qui a pour nom ns
+    BEGIN
+       profilsAutorises := profilsAutorises - {(nomDe~(ns)|->ps)} //TODO
+    END;
+    
+    ajouterProfilAutorise(ns, ps) = // Ajoute le profil ps des profils autorises du service contraint qui a pour nom ns
+    BEGIN      
+          profilsAutorises := profilsAutorises \/ {(nomDe~(ns)|->ps)}       //TODO
+    END;
+    
+    
+     /*** Operations sur les processus ***/
+    
+    res <-- ajouterProcessus(profil) = // ajout du processus res avec le profil indique aux processus du systeme
+    BEGIN
+        VAR pp IN    
+               pp:=0;
+               WHILE c_processus(pp)=ok
+               DO
+                   pp := pp + 1
+               INVARIANT
+                   pp : PLAGE_PROCESSUS
+               VARIANT
+                   pp
+               END;        
+            profilDe(pp) := profil;
+            c_processus(pp) := ok;
+            res := pp
+        END
+    END;
+    
+    
+    supprimerProcessus(pp) = // suppression du processus pp du systeme
+    BEGIN        
+        c_processus(pp) := ok;
+        profilDe := {pp} <<| profilDe;
+        souscrit := {pp} <<| souscrit
+    END;
+    
+
+    modifierProfil(pp, np) = // modifie le profil du processus pp en profil np
+    BEGIN        
+        profilDe(pp) := np
+    END;
+    
+
+    souscrire(pp, ss) = // pp processus qui souscrit au service ss
+    BEGIN       
+        souscrit := souscrit \/ {(pp |-> ss)} //TODO
+    END;
+
+
+    suspendre(pp, ss) = // pp processus qui suspend une souscription au service ss
+    BEGIN       
+        souscrit := souscrit - {(pp |-> ss)} //TODO
+    END  
+    
+END
+ 
