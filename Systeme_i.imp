@@ -1,5 +1,5 @@
-/* RfnmSysteme_i
- * Author: Tantely
+/* Systeme_i
+ * Authors: RANDRIAMAHARAVOMANANA Tantely, Léo Cassiau, Ashma
  * Creation date: 03/11/2016
  */
 
@@ -30,16 +30,13 @@ CONCRETE_VARIABLES
     c_processus,
     c_profils,
     
-    services,    // Services du systeme
-    processus,   // Processus du systeme
-    noms,        // Noms du systemes
-    nomDe,       // Noms des services du systemes
-    contraint,   // Service contraint ou non ?
-    exclusif,    // Service exclusif ou non ?
-    actif,       // Service actif ou non ?
-    souscrit,    // Processus inscrits au services
-    profilDe,    // Profil des processus
-    profilsAutorises // Profils autorises des services
+    c_nomDe,       // Noms des services du systemes
+    c_contraint,   // Service contraint ou non ?
+    c_exclusif,    // Service exclusif ou non ?
+    c_actif,       // Service actif ou non ?
+    c_souscrit,    // Processus inscrits au services
+    c_profilDe,    // Profil des processus
+    c_profilsAutorises // Profils autorises des services
 
 INVARIANT
     
@@ -52,20 +49,30 @@ INVARIANT
     & processus = c_processus~[{ok}]
     & noms = c_noms~[{ok}]
     
-    & contraint : services --> BOOL
-    & exclusif : services --> BOOL
-    & actif : services --> BOOL
-    & souscrit : processus <-> services
-    & profilDe: processus --> PROFILS
-    & profilsAutorises : services <-> PROFILS
-    & nomDe : services >->> noms 
+    & c_contraint : PLAGE_SERVICES --> BOOL
+    & c_exclusif : PLAGE_SERVICES --> BOOL
+    & c_actif : PLAGE_SERVICES --> BOOL
+    & c_souscrit : PLAGE_PROCESSUS <-> PLAGE_SERVICES
+    & c_profilDe: PLAGE_PROCESSUS --> PROFILS
+    & c_profilsAutorises : PLAGE_SERVICES <-> PROFILS
+    & c_nomDe : PLAGE_SERVICES >->> PLAGE_NOMS 
     
 
 INITIALISATION
    c_noms := (PLAGE_NOMS)*{ko};
    c_services := (PLAGE_SERVICES)*{ko};
    c_processus := (PLAGE_PROCESSUS)*{ko};
-   c_profils := (PLAGE_PROFILS)*{ko}
+   c_profils := (PLAGE_PROFILS)*{ko};
+
+   
+   c_contraint := (PLAGE_SERVICES)*{FALSE};
+   c_exclusif := (PLAGE_SERVICES)*{FALSE};
+   c_actif := (PLAGE_SERVICES)*{FALSE};
+   c_souscrit := (PLAGE_PROCESSUS)*{0};
+   c_profilDe := (PLAGE_PROCESSUS)*{0};
+   c_profilsAutorises := (PLAGE_SERVICES)*{0};
+   c_nomDe := (PLAGE_SERVICES)*{0}
+   
     
 
 OPERATIONS
@@ -85,14 +92,14 @@ OPERATIONS
                    ss
                END;
                c_noms(nom) := ok;           
-               nomDe(ss) := nom ;
-               contraint(ss) := cc;              
+               c_nomDe(ss) := nom ;
+               c_contraint(ss) := cc;              
                             
                VAR prfl IN
                    prfl:=0;
                    WHILE prfl<maxPROFILS
                    DO
-                       profilsAutorises(ss) := prfl;
+                       c_profilsAutorises(ss) := prfl;
                        prfl := prfl + 1
                    INVARIANT
                        prfl : PLAGE_PROFILS
@@ -101,7 +108,7 @@ OPERATIONS
                    END
                END;
                
-               exclusif(ss) := ee;
+               c_exclusif(ss) := ee;
                c_services(ss) := ok;
                res := ss
            END
@@ -112,8 +119,8 @@ OPERATIONS
       activerService(ns)= 
       BEGIN
            VAR ss IN
-               ss := nomDe~(ns);
-               actif(ss) := TRUE  
+               ss := c_nomDe~(ns);
+               c_actif(ss) := TRUE 
            END
       END
       ;
@@ -122,8 +129,8 @@ OPERATIONS
      interrompreService(ns) =    
      BEGIN
         VAR ss IN
-               ss := nomDe~(ns);
-               actif(ss) := FALSE  
+               ss := c_nomDe~(ns);
+               c_actif(ss) := FALSE  
         END
      END
      ;
@@ -131,30 +138,30 @@ OPERATIONS
     res <-- estActif(ns) = // retourne vrai si le service du nom ns est actif, faux sinon
     BEGIN
         VAR ss IN
-            ss := nomDe~(ns); 
-            res := actif(ss)        
+            ss := c_nomDe~(ns); 
+            res := c_actif(ss)        
         END
     END;
     
     mettreExclusifService(ns) = // permet de mettre en exclusif un service dont le nom est donne en parametre, ns: nom du service
     BEGIN        
-        exclusif(nomDe~(ns)) := TRUE 
+        c_exclusif( c_nomDe~(ns)) := TRUE 
     END;
     
     mettreNonExclusifService(ns) =
     // permet de mettre en non exclusif un service dont le nom est donne en parametre, ns: nom du service
     BEGIN       
-        exclusif(nomDe~(ns)) := FALSE
+        c_exclusif( c_nomDe~(ns)) := FALSE
     END;
   
     res <-- estExclusif(ns) = // retourne vrai si le service du nom ns est exclusif, faux sinon
     BEGIN         
-        res := exclusif(nomDe~(ns))       
+        res := c_exclusif( c_nomDe~(ns))       
     END;
     
     mettreContraint(ns) = // permet de mettre contraint un service dont le nom est en parametre , ns: nom du service
     BEGIN       
-         contraint(nomDe~(ns)) := TRUE
+         c_contraint( c_nomDe~(ns)) := TRUE
     END;
     
     mettreNonContraint(ns) =      // permet de mettre non contraint un service dont le nom est en                                       
@@ -165,7 +172,7 @@ OPERATIONS
                    prfl:=0;
                    WHILE prfl<maxPROFILS
                    DO
-                       profilsAutorises(nomDe~(ns)) := prfl;
+                       c_profilsAutorises( c_nomDe~(ns)) := prfl;
                        prfl := prfl + 1
                    INVARIANT
                        prfl : PLAGE_PROFILS
@@ -173,18 +180,20 @@ OPERATIONS
                        prfl
                    END
           END;
-        contraint(nomDe~(ns)) := FALSE
+        c_contraint( c_nomDe~(ns)) := FALSE
     END;
     
     
     supprimerProfilAutorise(ns, ps) = // Supprime le profil ps des profils autorises du service contraint qui a pour nom ns
     BEGIN
-       profilsAutorises := profilsAutorises - {(nomDe~(ns)|->ps)} //TODO
+       c_profilsAutorises( c_nomDe~(ns)) := c_profilsAutorises( c_nomDe~(ns)) - ps //on enlève le profil ps parmi les profils autorise pour le processus de nom ns
+       /* profilsAutorises := profilsAutorises - {( nomDe~(ns)|->ps)}*/
     END;
     
     ajouterProfilAutorise(ns, ps) = // Ajoute le profil ps des profils autorises du service contraint qui a pour nom ns
     BEGIN      
-          profilsAutorises := profilsAutorises \/ {(nomDe~(ns)|->ps)}       //TODO
+          c_profilsAutorises( c_nomDe~(ns)) := c_profilsAutorises( c_nomDe~(ns)) + ps //on ajoute le profil ps parmi les profils autorise pour le processus de nom ns
+          /* profilsAutorises := profilsAutorises \/ {( nomDe~(ns)|->ps)} */
     END;
     
     
@@ -202,7 +211,7 @@ OPERATIONS
                VARIANT
                    pp
                END;        
-            profilDe(pp) := profil;
+            c_profilDe(pp) := profil;
             c_processus(pp) := ok;
             res := pp
         END
@@ -211,27 +220,31 @@ OPERATIONS
     
     supprimerProcessus(pp) = // suppression du processus pp du systeme
     BEGIN        
-        c_processus(pp) := ok;
-        profilDe := {pp} <<| profilDe;
-        souscrit := {pp} <<| souscrit
+        c_processus(pp) := ko;
+        c_profilDe(pp) := 0;
+        /*profilDe := {pp} <<| profilDe;*/
+        c_souscrit(pp) := 0
+        /* souscrit := {pp} <<| souscrit*/
     END;
     
 
     modifierProfil(pp, np) = // modifie le profil du processus pp en profil np
     BEGIN        
-        profilDe(pp) := np
+        c_profilDe(pp) := np
     END;
     
 
     souscrire(pp, ss) = // pp processus qui souscrit au service ss
     BEGIN       
-        souscrit := souscrit \/ {(pp |-> ss)} //TODO
+        c_souscrit(pp) := c_souscrit(pp) + ss //on ajoute le service ss parmi les services auxquels le processus pp est souscrit
+        /*souscrit := souscrit \/ {(pp |-> ss)}*/
     END;
 
 
     suspendre(pp, ss) = // pp processus qui suspend une souscription au service ss
     BEGIN       
-        souscrit := souscrit - {(pp |-> ss)} //TODO
+        c_souscrit(pp) := c_souscrit(pp) - ss //on enleve le service ss parmi les services auxquels le processus pp est souscrit
+        /*souscrit := souscrit - {(pp |-> ss)}*/
     END  
     
 END
