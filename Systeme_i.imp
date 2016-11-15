@@ -8,11 +8,14 @@ IMPLEMENTATION Systeme_i
 REFINES Systeme
 
 DEFINITIONS 
+    maxPROFILS == 20;
+    maxNOMS == 100;
+    maxSERVICES == 100;
     PLAGE_NOMS == 0..100;
-    PLAGE_SERVICES == 0..100;
-    PLAGE_PROCESSUS == 0..200;
-    PLAGE_PROFILS == 0..20;
-    maxPROFILS == 21
+    PLAGE_SERVICES == 0..maxSERVICES;
+    PLAGE_PROCESSUS == 0..maxNOMS;
+    PLAGE_PROFILS == 0..maxPROFILS
+    
     
 SETS    
     OKKO = {ok, ko}
@@ -55,7 +58,7 @@ INVARIANT
     & c_souscrit : PLAGE_PROCESSUS <-> PLAGE_SERVICES
     & c_profilDe: PLAGE_PROCESSUS --> PROFILS
     & c_profilsAutorises : PLAGE_SERVICES <-> PROFILS
-    & c_nomDe : PLAGE_SERVICES >->> PLAGE_NOMS 
+    & c_nomDe : services >->> noms 
     
 
 INITIALISATION
@@ -71,7 +74,7 @@ INITIALISATION
    c_souscrit := (PLAGE_PROCESSUS)*{0};
    c_profilDe := (PLAGE_PROCESSUS)*{0};
    c_profilsAutorises := (PLAGE_SERVICES)*{0};
-   c_nomDe := (PLAGE_SERVICES)*{0}
+   c_nomDe := {}
    
     
 
@@ -81,30 +84,34 @@ OPERATIONS
              
        res <-- ajouterService(nom, cc, ee) =
        BEGIN
-           VAR ss IN    
-               ss:=0;
-               WHILE c_services(ss)=ok
+           VAR ss, sr IN    
+               ss := 0; sr:=0;
+               WHILE (c_services(sr)=ok & (sr < maxSERVICES))
                DO
-                   ss := ss + 1
+                   sr := sr + 1                   
                INVARIANT
-                   ss : PLAGE_SERVICES
+                   sr : PLAGE_SERVICES             
                VARIANT
-                   ss
+                   maxSERVICES - sr
                END;
+               ss := sr;
+               
                c_noms(nom) := ok;           
                c_nomDe(ss) := nom ;
                c_contraint(ss) := cc;              
                             
                VAR prfl IN
                    prfl:=0;
-                   WHILE prfl<maxPROFILS
+                   WHILE (prfl<maxPROFILS)
                    DO
-                       c_profilsAutorises(ss) := prfl;
+                       /*profilsAutorises := profilsAutorises \/ {ss}*PROFILS*/
+                       c_profilsAutorises(ss) := c_profilsAutorises(ss) + prfl;
                        prfl := prfl + 1
                    INVARIANT
                        prfl : PLAGE_PROFILS
+                       & ss: PLAGE_SERVICES
                    VARIANT
-                       prfl
+                       maxPROFILS - prfl
                    END
                END;
                
@@ -138,8 +145,8 @@ OPERATIONS
     res <-- estActif(ns) = // retourne vrai si le service du nom ns est actif, faux sinon
     BEGIN
         VAR ss IN
-            ss := c_nomDe~(ns); 
-            res := c_actif(ss)        
+             ss := c_nomDe~(ns);                 
+             res := c_actif(ss)
         END
     END;
     
